@@ -1,0 +1,6 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.jdt.ls.vmargs": "-javaagent:${userHome}/.m2/repository/org/projectlombok/lombok/1.18.36/lombok-1.18.36.jar",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "spring-boot.ls.check.unknownProperties": "ignore"
+}
