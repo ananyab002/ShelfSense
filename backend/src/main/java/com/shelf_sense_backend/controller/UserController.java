@@ -14,15 +14,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.shelf_sense_backend.model.UserEntity;
 import com.shelf_sense_backend.model.LoginRequest;
+import com.shelf_sense_backend.model.UserEntity;
 import com.shelf_sense_backend.repo.UserRepository;
 import com.shelf_sense_backend.security.JwtUtil;
 import com.shelf_sense_backend.service.UserService;
 
 @RestController
 @RequestMapping("auth")
-@CrossOrigin(origins = "http://localhost:5173") // Allow requests from React
+@CrossOrigin(origins = {"http://localhost:3001", "http://localhost:5173", "http://backend:8080"})
 public class UserController {
 
     @Autowired

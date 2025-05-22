@@ -38,9 +38,10 @@ const RegisterPage = () => {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      console.log(data);
+      const {confirmPassword, ...rest} = data;
+      console.log(rest);
       //http://127.0.0.1:8000/users/register  //for python backend
-      const response = await api.post("auth/register", data, {
+      const response = await api.post("auth/register", rest, {
         headers: {
           "Content-Type": "application/json",
         },

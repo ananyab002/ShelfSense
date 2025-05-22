@@ -1,0 +1,86 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8081/
+    ports:
+       - "3001:4173"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - shelfsense-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8081}:8080"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      # Database configuration
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-shelfsense}
+      - MYSQL_USERNAME=${MYSQL_USERNAME:-root}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-shelfsense}
+      - SPRING_DATASOURCE_DB_HOST=mysql
+      - SPRING_DATASOURCE_DB_PORT=3306
+      
+      # JPA Configuration
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.MySQL8Dialect
+      
+      # Email configuration
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      
+      # Google Cloud configuration
+      - GOOGLE_CLOUD_CREDENTIALS=${GOOGLE_CLOUD_CREDENTIALS:-/app/google-credentials.json}
+      
+      # LM Studio configuration (for Docker internal network)
+      - LMSTUDIO_API_URL=http://host.docker.internal:1234/v1/chat/completions
+      
+    volumes:
+      - ./google-credentials.json:/app/google-credentials.json:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - shelfsense-network
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "${MYSQL_EXTERNAL_PORT:-3307}:3306" 
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-shelfsense}
+      - MYSQL_ROOT_HOST=%
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --bind-address=0.0.0.0
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+    networks:
+      - shelfsense-network
+
+networks:
+  shelfsense-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local

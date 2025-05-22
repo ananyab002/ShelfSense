@@ -56,6 +56,11 @@ public class ReceiptOcrService {
 
         Order order = createOrderFromReceipt(extractedText);
 
+        if (order.getOrderNumber() == null || order.getOrderNumber().isEmpty() || order.getOrderDate() == null) {
+            logger.error("Failed to extract order number or date from the receipt");
+            throw new IOException("No order number found in the receipt");
+        }
+
         List<ShoppedItem> items = groceryReceiptAnalyzer.parseReceipt(extractedText, order);
 
         Order savedOrder = orderRepository.save(order);
@@ -112,13 +117,12 @@ public class ReceiptOcrService {
     public Order createOrderFromReceipt(String text) {
         Order order = new Order();
         order.setOrderNumber(getOrderNumber(text));
-        order.setOrderDate(getOrderDate(text));
+        order.setOrderDate(extractDate(text));
         return order;
     }
 
     public String getOrderNumber(String text) {
-        Pattern orderPattern = Pattern.compile("(?:Ordre\\s*nr|Bestillingsnummer)[.:\\s]*([a-zA-Z0-9]+)",
-                Pattern.CASE_INSENSITIVE);
+        Pattern orderPattern = Pattern.compile("(?:Ordre\\s*nr|Bestillingsnummer|#)([a-zA-Z0-9]+)", Pattern.CASE_INSENSITIVE);
         Matcher orderMatcher = orderPattern.matcher(text);
         if (orderMatcher.find()) {
             return orderMatcher.group(1);
@@ -178,7 +182,8 @@ public class ReceiptOcrService {
                 return null;
             }
         } else {
-            Pattern altDatePattern = Pattern.compile("(\\d{1,2}[./]\\d{1,2}[./]\\d{4})\\s*(\\d{1,2}:\\d{2})");
+            Pattern altDatePattern = Pattern.compile( "(?:(\\p{L}+)[ ,]*)?(\\d{1,2})[-./](\\d{1,2})[-./](\\d{4})\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?)",
+                    Pattern.CASE_INSENSITIVE);
             Matcher altDateMatcher = altDatePattern.matcher(text);
 
             if (altDateMatcher.find()) {
@@ -196,5 +201,60 @@ public class ReceiptOcrService {
             }
         }
     }
+
+    public LocalDate extractDate(String text) {
+    // Normalize input
+    text = text.toLowerCase()
+               .replaceAll(",", "")
+               .replaceAll("kl\\.?\\s*", "")
+               .replaceAll("søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag", "") // remove day names
+               .trim();
+
+    // Month mapping
+    Map<String, Integer> monthMap = Map.ofEntries(
+        Map.entry("januar", 1), Map.entry("februar", 2), Map.entry("mars", 3),
+        Map.entry("april", 4), Map.entry("mai", 5), Map.entry("juni", 6),
+        Map.entry("juli", 7), Map.entry("august", 8), Map.entry("september", 9),
+        Map.entry("oktober", 10), Map.entry("november", 11), Map.entry("desember", 12),
+        Map.entry("january", 1), Map.entry("february", 2), Map.entry("march", 3),
+        Map.entry("may", 5), Map.entry("june", 6), Map.entry("july", 7),
+        Map.entry("october", 10), Map.entry("december", 12)
+    );
+
+    // 1. Match dd.MM.yyyy with optional time
+    Pattern numericDatePattern = Pattern.compile("(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})(?:\\s+(\\d{1,2}:\\d{2}))?");
+    Matcher numericMatcher = numericDatePattern.matcher(text);
+    if (numericMatcher.find()) {
+        int day = Integer.parseInt(numericMatcher.group(1));
+        int month = Integer.parseInt(numericMatcher.group(2));
+        int year = Integer.parseInt(numericMatcher.group(3));
+        return LocalDate.of(year, month, day);
+    }
+
+    // 2. Match dd. MMMM yyyy with optional time
+    Pattern namedMonthPattern = Pattern.compile("(\\d{1,2})[.]?\\s*(\\p{L}+)[ ]+(\\d{4})");
+    Matcher namedMatcher = namedMonthPattern.matcher(text);
+    if (namedMatcher.find()) {
+        int day = Integer.parseInt(namedMatcher.group(1));
+        String monthName = namedMatcher.group(2);
+        int year = Integer.parseInt(namedMatcher.group(3));
+        Integer month = monthMap.get(monthName);
+        if (month != null) {
+            return LocalDate.of(year, month, day);
+        }
+    }
+
+    // 3. Fallback: ISO-style yyyy-MM-dd
+    Pattern isoPattern = Pattern.compile("(\\d{4})-(\\d{2})-(\\d{2})");
+    Matcher isoMatcher = isoPattern.matcher(text);
+    if (isoMatcher.find()) {
+        int year = Integer.parseInt(isoMatcher.group(1));
+        int month = Integer.parseInt(isoMatcher.group(2));
+        int day = Integer.parseInt(isoMatcher.group(3));
+        return LocalDate.of(year, month, day);
+    }
+
+    return null; // No matching date
+}
 
 }

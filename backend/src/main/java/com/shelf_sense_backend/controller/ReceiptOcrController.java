@@ -22,7 +22,7 @@ import com.shelf_sense_backend.service.ReceiptOcrService;
 
 @RestController
 @RequestMapping("/api/receipts")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:3001") 
 public class ReceiptOcrController {
 
     private static final Logger logger = LoggerFactory.getLogger(ReceiptOcrController.class);

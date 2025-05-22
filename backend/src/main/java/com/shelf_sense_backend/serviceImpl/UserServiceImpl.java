@@ -3,15 +3,17 @@ package com.shelf_sense_backend.serviceImpl;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.security.core.userdetails.User;
 
 import com.shelf_sense_backend.model.UserEntity;
 import com.shelf_sense_backend.repo.UserRepository;
 import com.shelf_sense_backend.service.UserService;
+
+import jakarta.transaction.Transactional;
 
 
 @Service
@@ -25,6 +27,7 @@ public class UserServiceImpl implements UserService {
 
     
     @Override
+    @Transactional
     public UserEntity registerUser(UserEntity user) {
         // Check if the user already exists
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
